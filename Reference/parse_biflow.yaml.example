@@ -1,0 +1,6 @@
+# Example parse biflow yaml
+# Place in ~ and modify as needed
+
+ip: 10.208.108.101
+username: root
+password: lan1cope
