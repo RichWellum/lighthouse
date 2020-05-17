@@ -187,8 +187,6 @@ class Parsedata:
             self.df_master_lab_data, self.df_new_lab_data
         )
         new_master_df = new_master_df.drop("_merge", 1)
-        print("\nSaved new master to 'new_master.csv'")
-        new_master_df.to_csv("new_master.csv")
         print_banner(
             "(Merged) These labs were present in only one set of data - this is the new Master"
         )
