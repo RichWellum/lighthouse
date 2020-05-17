@@ -20,14 +20,18 @@ def parse_args():
     """Parse sys.argv and return args."""
     parser = argparse.ArgumentParser(
         formatter_class=RawDescriptionHelpFormatter,
-        description="This tool compares two CSV files",
-        epilog="E.g.: ./cdc.py Master.csv latest.csv",
+        description="This tool compares Master lab data with new data CSV files",
+        epilog="E.g.: ./cdc.py Master/Master.csv TestCaptures/data1.csv "
+        "TestCaptures/data2.csv TestCaptures/data3.csv TestCaptures/data4.csv",
     )
     parser.add_argument(
         "master", help="A master CDC CSV file to process",
     )
     parser.add_argument(
-        "new_data", help="New data to compare",
+        "new_files",
+        type=argparse.FileType("r"),
+        nargs="+",
+        help="Number of new data files",
     )
     parser.add_argument(
         "-f",
@@ -105,16 +109,16 @@ class Parsedata:
         """Initialize all variables, basic time checking."""
         self.verbose = args.verbose
         self.force = args.force
-        self.tol_pandas_df = ""
         self.master_csv = args.master
-        self.new_data_csv = args.new_data
-        self.df_master = None
-        self.df_new_data = None
+        self.df_master_lab_data = None
+        self.df_new_lab_data = None
+        self.new_files = args.new_files
 
     def get_files(self):
         """Use Python Pandas to create a dataset.
 
-        Get the CSV file, add headerss
+        Create two dataframes for the master and new data.
+        Makes everything strings so merges and compares work.
         """
         col_names = [
             "ID",
@@ -128,12 +132,17 @@ class Parsedata:
             "Phone",
         ]
 
-        # Create two dataframes for the master and new data
-        # Makes everything strings so merges and compares work
-        self.df_master = pd.read_csv(self.master_csv, names=col_names, header=None)
-        self.df_master = self.df_master.astype(str)
-        self.df_new_data = pd.read_csv(self.new_data_csv, names=col_names, header=None)
-        self.df_new_data = self.df_new_data.astype(str)
+        # Grab master data
+        self.df_master_lab_data = pd.read_csv(
+            self.master_csv, names=col_names, header=None
+        )
+        self.df_master_lab_data = self.df_master_lab_data.astype(str)
+
+        # Grab other inputed files to make new data file to compare with
+        self.df_new_lab_data = pd.concat(
+            [pd.read_csv(file, names=col_names, header=None) for file in self.new_files]
+        )
+        self.df_new_lab_data = self.df_new_lab_data.astype(str)
 
     def process_data(self):
         """Process the data.
@@ -144,50 +153,75 @@ class Parsedata:
         """
 
         print_banner("Old Master data")
-        print(self.df_master)
+        print(self.df_master_lab_data)
 
-        print_banner("New data")
-        print(self.df_new_data)
+        print_banner("New data combined from new data file(s)")
+        print(self.df_new_lab_data)
 
-        # This is the new diff - save this off to a CSV
-        print_banner("(New not Master) These rows were present in only the new data")
-        new_data_df = dataframe_difference(
-            self.df_master, self.df_new_data, which="right_only"
+        # This is the new Labs - save this off to a CSV
+        print_banner(
+            "(New not Master) These labs were present in only the combined new data"
         )
-        print(new_data_df)
+        new_lab_data_df = dataframe_difference(
+            self.df_master_lab_data, self.df_new_lab_data, which="right_only"
+        )
+        print(new_lab_data_df)
 
-        print_banner("(Master not new) These rows were present in only in the master")
-        print(dataframe_difference(self.df_master, self.df_new_data, which="left_only"))
+        print_banner("(Master not new) These labs were present in only in the master")
+        print(
+            dataframe_difference(
+                self.df_master_lab_data, self.df_new_lab_data, which="left_only"
+            )
+        )
 
-        print_banner("(Duplicates) These rows were present in both sets of data")
-        print(dataframe_difference(self.df_master, self.df_new_data, which="both"))
+        print_banner("(Duplicates) These labs were present in both sets of data")
+        print(
+            dataframe_difference(
+                self.df_master_lab_data, self.df_new_lab_data, which="both"
+            )
+        )
 
         # This is the sanitized new combined or merged data
         # Save as the new master
-        new_master_df = dataframe_difference(self.df_master, self.df_new_data)
+        new_master_df = dataframe_difference(
+            self.df_master_lab_data, self.df_new_lab_data
+        )
         new_master_df = new_master_df.drop("_merge", 1)
         print("\nSaved new master to 'new_master.csv'")
         new_master_df.to_csv("new_master.csv")
-        print_banner("(Merged) These rows were present in only one set of data")
+        print_banner(
+            "(Merged) These labs were present in only one set of data - this is the new Master"
+        )
         print(new_master_df)
 
-        print("\nSaved diff to 'Output/diff.csv'")
-        new_data_df.to_csv("Output/diff.csv")
+        # Final step compare new and old Masters - what has been removed from
+        # old Master?
+        removed_from_old_master = dataframe_difference(self.df_master_lab_data, new_master_df, which="left_only")
+        print_banner("Labs removed from the old Master list")
+        print(removed_from_old_master)
 
-        print("Saved new master to 'Output/new_master.csv'")
-        new_master_df.to_csv("Output/new_master.csv")
+        # Save some info
+        print_banner("Lab Data saved to CSV files")
+
+        print("\nSaved new lab data to 'Output/new_lab_data.csv'")
+        new_lab_data_df.to_csv("Output/new_lab_data.csv")
+
+        print("Saved new master lab data to 'Output/new_master_lab_data.csv'")
+        new_master_df.to_csv("Output/new_master_lab_data.csv")
 
         # Add some fun filtering
-        print_banner("Clients in Alabama only")
+        print_banner("Labs in Alabama only")
         print(new_master_df[new_master_df["State"].str.match("AL")])
 
-        print_banner("Clients with License 'Compliance'")
+        print_banner("Labs with License 'Compliance'")
         print(new_master_df[new_master_df["License"].str.match("Compliance")])
 
-        print_banner("Clients in City 'Anchorage'")
+        print_banner("Labs in City 'Anchorage'")
         print(new_master_df[new_master_df["City"].str.match("Anchorage")])
 
-        print_banner(f"Total number of results: {len(new_master_df)}")
+        print_banner(
+            f"Total number of results in new master lab data: {len(new_master_df)}"
+        )
 
 
 def main():
