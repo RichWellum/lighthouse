@@ -200,15 +200,6 @@ class Parsedata:
         print_banner("Labs removed from the old Master list")
         print(removed_from_old_master)
 
-        # Save some info
-        print_banner("Lab Data saved to CSV files")
-
-        print("\nSaved new lab data to 'Output/new_lab_data.csv'")
-        new_lab_data_df.to_csv("Output/new_lab_data.csv")
-
-        print("Saved new master lab data to 'Output/new_master_lab_data.csv'")
-        new_master_df.to_csv("Output/new_master_lab_data.csv")
-
         # Add some fun filtering
         print_banner("Labs in Alabama only")
         print(new_master_df[new_master_df["State"].str.match("AL")])
@@ -218,6 +209,18 @@ class Parsedata:
 
         print_banner("Labs in City 'Anchorage'")
         print(new_master_df[new_master_df["City"].str.match("Anchorage")])
+
+        # Save some info
+        print_banner("Lab Data saved to CSV files")
+
+        print("\nSaved new lab data to 'Output/new_lab_data.csv'")
+        new_lab_data_df.to_csv("Output/new_lab_data.csv")
+
+        print("Saved new master lab data to 'Output/new_master_lab_data.csv'")
+        new_master_df.to_csv("Output/new_master_lab_data.csv")
+
+        print("Saved Labs removed from old Master to 'Output/removed_from_old_master_lab_data.csv'")
+        removed_from_old_master.to_csv("Output/removed_from_old_master_lab_data.csv")
 
         print_banner(
             f"Total number of results in new master lab data: {len(new_master_df)}"
