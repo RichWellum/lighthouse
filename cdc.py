@@ -211,13 +211,13 @@ class Parsedata:
         # Save some info
         print_banner("Lab Data saved to CSV files")
 
-        print("\nSaved new lab data to 'Output/new_lab_data.csv'")
+        print("\nSaved new lab data to: 'Output/new_lab_data.csv'")
         new_lab_data_df.to_csv("Output/new_lab_data.csv")
 
-        print("Saved new master lab data to 'Output/new_master_lab_data.csv'")
+        print("Saved new master lab data to: 'Output/new_master_lab_data.csv'")
         new_master_df.to_csv("Output/new_master_lab_data.csv")
 
-        print("Saved Labs removed from old Master to 'Output/removed_from_old_master_lab_data.csv'")
+        print("Saved Labs removed from old Master to: 'Output/removed_from_old_master_lab_data.csv'")
         removed_from_old_master.to_csv("Output/removed_from_old_master_lab_data.csv")
 
         print_banner(
