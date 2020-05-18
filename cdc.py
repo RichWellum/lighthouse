@@ -76,7 +76,7 @@ def print_banner(description):
     print("\n")
 
 
-def df_diff(df1, df2, which=None):
+def df_diff(df1, df2, comp_lst, which=None):
     """Find rows which are different.
 
     which=left_only  - Which rows were only present in the first DataFrame?
@@ -84,22 +84,7 @@ def df_diff(df1, df2, which=None):
     which=both       - Which rows were present in both DataFrames?
     which=None       - Which rows were not present in both DataFrames, but present in one of them?
     """
-    comparison_df = df1.merge(
-        df2,
-        indicator=True,
-        on=[
-            "ID",
-            "Type",
-            "License",
-            "Name",
-            "Address",
-            "City",
-            "State",
-            "Zip",
-            "Phone",
-        ],
-        how="outer",
-    )
+    comparison_df = df1.merge(df2, indicator=True, on=comp_lst, how="outer",)
     if which is None:
         diff_df = comparison_df[comparison_df["_merge"] != "both"]
     else:
@@ -132,6 +117,24 @@ class Parsedata:
         self.new_files = args.new_files
         self.df_master_lab_data = None
         self.df_new_lab_data = None
+        self.columns = [
+            "CLIA",
+            "FACILITY_TYPE",
+            "CERTIFICATE_TYPE",
+            "LAB_NAME",
+            "STREET",
+            "CITY",
+            "STATE",
+            "ZIP",
+            "PHONE",
+            "Contact",
+            "Touch 1",
+            "Touch 2",
+            "Touch 3",
+            "Touch 4",
+            "Call Tag 1",
+            "Call Tag 2",
+        ]
 
     def get_files(self):
         """Use Python Pandas to create a dataset.
@@ -139,29 +142,21 @@ class Parsedata:
         Create two dataframes for the master and new data.
         Makes everything strings so merges and compares work.
         """
-        col_names = [
-            "ID",
-            "Type",
-            "License",
-            "Name",
-            "Address",
-            "City",
-            "State",
-            "Zip",
-            "Phone",
-        ]
 
-        # Grab master data
+        # Grab master data - use existing header
         print("\nGrab old master data...")
         self.df_master_lab_data = pd.read_csv(
-            self.master_csv, names=col_names, header=None, dtype=str
+            self.master_csv, names=self.columns, header=0, dtype=str
         )
         self.df_master_lab_data = self.df_master_lab_data.astype(str)
 
         # Grab other inputed files to make new data file to compare with
         print("Combine and save new data files...")
         self.df_new_lab_data = pd.concat(
-            [pd.read_csv(file, names=col_names, header=None) for file in self.new_files]
+            [
+                pd.read_csv(file, names=self.columns, header=None)
+                for file in self.new_files
+            ]
         )
         self.df_new_lab_data = self.df_new_lab_data.astype(str)
 
@@ -186,7 +181,10 @@ class Parsedata:
         #
         print_banner("New CLIA (Labs in new data not present in old Master)")
         new_clias_df = df_diff(
-            self.df_master_lab_data, self.df_new_lab_data, which="right_only"
+            self.df_master_lab_data,
+            self.df_new_lab_data,
+            self.columns,
+            which="right_only",
         )
         new_clias_df = new_clias_df.drop("_merge", 1)
         print(new_clias_df)
@@ -198,7 +196,10 @@ class Parsedata:
             "Closed CLIA (Labs present in only in the master and not the new data)"
         )
         closed_clias_df = df_diff(
-            self.df_master_lab_data, self.df_new_lab_data, which="left_only"
+            self.df_master_lab_data,
+            self.df_new_lab_data,
+            self.columns,
+            which="left_only",
         )
         closed_clias_df = closed_clias_df.drop("_merge", 1)
         print(closed_clias_df)
@@ -208,7 +209,7 @@ class Parsedata:
         #
         print_banner("Unchanged CIA (Labs were present in old Master and new data")
         unchanged_clias_df = df_diff(
-            self.df_master_lab_data, self.df_new_lab_data, which="both"
+            self.df_master_lab_data, self.df_new_lab_data, self.columns, which="both"
         )
         unchanged_clias_df = unchanged_clias_df.drop("_merge", 1)
         print(unchanged_clias_df)
@@ -251,13 +252,13 @@ class Parsedata:
         if self.extra:
             # Add some fun filtering
             print_banner("Labs in Alabama only")
-            print(new_master_df[new_master_df["State"].str.match("AL")])
+            print(new_master_df[new_master_df["STATE"].str.match("AL")])
 
             print_banner("Labs with License 'Compliance'")
-            print(new_master_df[new_master_df["License"].str.match("Compliance")])
+            print(new_master_df[new_master_df["CERTIFICATE_TYPE"].str.match("Compliance")])
 
             print_banner("Labs in City 'Anchorage'")
-            print(new_master_df[new_master_df["City"].str.match("Anchorage")])
+            print(new_master_df[new_master_df["CITY"].str.match("Anchorage")])
 
 
 def main():
