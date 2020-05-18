@@ -145,14 +145,14 @@ class Parsedata:
         """
 
         # Grab master data - use existing header
-        print("\nGrab old master data...")
         self.df_master_lab_data = pd.read_csv(
             self.master_csv, names=self.columns, header=0, dtype=str
         )
         self.df_master_lab_data = self.df_master_lab_data.astype(str)
+        print()
+        print(f"Old master CLIA ({len(self.df_master_lab_data)}) data...")
 
         # Grab other inputed files to make new data file to compare with
-        print("Combine and save new data files...")
         self.df_new_lab_data = pd.concat(
             [
                 pd.read_csv(file, names=self.columns, header=None)
@@ -160,6 +160,7 @@ class Parsedata:
             ]
         )
         self.df_new_lab_data = self.df_new_lab_data.astype(str)
+        print(f"Combine and save new data files ({len(self.df_new_lab_data)})...")
 
     def process_data(self):
         """Process the data.
@@ -169,7 +170,7 @@ class Parsedata:
         Save the diff file and the new master.
         """
 
-        print("Number of rows displayed restricted to '20'\n")
+        print("\nNumber of rows displayed restricted to '20'\n")
         if self.extra:
             print_banner("Old Master data")
             print(self.df_master_lab_data)
@@ -180,55 +181,55 @@ class Parsedata:
         #
         # NEW CLIAS
         #
-        print_banner("New CLIA (Labs in new data not present in old Master)")
         new_clias_df = df_diff(
             self.df_master_lab_data,
             self.df_new_lab_data,
             self.columns,
             which="right_only",
         )
-        new_clias_df = new_clias_df.drop("_merge", 1)
+        new_clias_df = new_clias_df.drop("_merge", 1).reset_index(drop=True)
+        print_banner(
+            f"New ({len(new_clias_df)}) CLIA (Labs in new data not present in old Master)"
+        )
         print(new_clias_df)
 
         #
         # CLOSED CLIAS
         #
-        print_banner(
-            "Closed CLIA (Labs present in only in the master and not the new data)"
-        )
         closed_clias_df = df_diff(
             self.df_master_lab_data,
             self.df_new_lab_data,
             self.columns,
             which="left_only",
         )
-        closed_clias_df = closed_clias_df.drop("_merge", 1)
+        closed_clias_df = closed_clias_df.drop("_merge", 1).reset_index(drop=True)
+        print_banner(
+            f"Closed ({len(closed_clias_df)}) CLIA (Labs present in only in the master and not the new data)"
+        )
         print(closed_clias_df)
 
         #
-        # UNCHANGED CLIAS
+        # UNCHANGED CLIAS - present in both
         #
-        print_banner("Unchanged CIA (Labs were present in old Master and new data")
         unchanged_clias_df = df_diff(
             self.df_master_lab_data, self.df_new_lab_data, self.columns, which="both"
         )
         unchanged_clias_df = unchanged_clias_df.drop("_merge", 1)
+        print_banner(
+            f"Unchanged ({len(unchanged_clias_df)}) CLIA (Labs were present in old Master and new data"
+        )
         print(unchanged_clias_df)
 
         #
-        # New master = (unchanged - closed) + new
+        # New master = (unchanged + new)
         #
 
-        # unchanged - closed
-        new_master_df = (
-            pd.merge(unchanged_clias_df, closed_clias_df, how="outer", indicator=True)
-            .query("_merge != 'both'")
-            .drop("_merge", axis=1)
-            .reset_index(drop=True)
-        )
         # new_master + new data
-        new_master_df = pd.concat([new_master_df, new_clias_df])
-        print_banner("CLIA Master ((unchanged - closed) + new)")
+        new_master_df = pd.concat(
+            [unchanged_clias_df, new_clias_df], ignore_index=True
+        ).reset_index(drop=True)
+        print_banner(f"CLIA Master ({len(new_master_df)}) (unchanged + new)")
+
         print(new_master_df)
 
         # Save some info
@@ -251,10 +252,6 @@ class Parsedata:
         new_master = f"Output/new_master_clia_data_{timestr}.csv"
         print(f"Saved new master CLIA data to: '{new_master}'")
         new_master_df.to_csv(new_master)
-
-        print_banner(
-            f"Total number of CLIAs in new master lab data: {len(new_master_df)}"
-        )
 
         if self.extra:
             # Add some fun filtering
