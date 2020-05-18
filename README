@@ -1,1 +1,14 @@
 # Lighthouse CDC parsing tools
+
+This is a tool to make a comparison between a master file of CDC Labs,
+retrieved and combined from: https://www.cdc.gov/clia/LabSearch.html, and a
+second search that presumably contained new data.
+
+The purpose is to document new CLIA labs and closed CLIA labs.
+
+For options execute: ./cdc.py -html
+
+The environment needs python3 and pandas modules to be installed.
+
+Output is four files: closed_clia, new_clia, unchanged_clias and
+new_master_clia - all in CSV format.
