@@ -7,6 +7,7 @@ https://www.cdc.gov/clia/LabSearch.html
 
 import argparse
 import sys
+import time
 from argparse import RawDescriptionHelpFormatter
 
 import pandas as pd
@@ -233,17 +234,23 @@ class Parsedata:
         # Save some info
         print_banner("Results saved to CSV files")
 
-        print("\nSaved new CLIA data to:        'Output/new_clia_data.csv'")
-        new_clias_df.to_csv("Output/new_clia_data.csv")
+        timestr = time.strftime("%Y-%m-%d-%H:%M:%S")
 
-        print("Saved closed CLIA data to:     'Output/closed_clia_data.csv'")
-        closed_clias_df.to_csv("Output/closed_clia_data.csv")
+        new_clia_data = f"Output/new_clia_data_{timestr}.csv"
+        print(f"\nSaved new CLIA data to:        '{new_clia_data}'")
+        new_clias_df.to_csv(new_clia_data)
 
-        print("Saved unchanged CLIA data to:  'Output/unchanged_clia_data.csv'")
-        unchanged_clias_df.to_csv("Output/unchanged_clia_data.csv")
+        closed_clia_data = f"Output/closed_clia_data_{timestr}.csv"
+        print(f"Saved closed CLIA data to:     '{closed_clia_data}'")
+        closed_clias_df.to_csv(closed_clia_data)
 
-        print("Saved new master CLIA data to: 'Output/new_master_clia_data.csv'")
-        new_master_df.to_csv("Output/new_master_clia_data.csv")
+        unchanged_clia_data = f"Output/unchanged_clia_data_{timestr}.csv"
+        print(f"Saved unchanged CLIA data to:  '{unchanged_clia_data}'")
+        unchanged_clias_df.to_csv(unchanged_clia_data)
+
+        new_master = f"Output/new_master_clia_data_{timestr}.csv"
+        print(f"Saved new master CLIA data to: '{new_master}'")
+        new_master_df.to_csv(new_master)
 
         print_banner(
             f"Total number of CLIAs in new master lab data: {len(new_master_df)}"
