@@ -25,13 +25,16 @@ def parse_args():
         "TestCaptures/data2.csv TestCaptures/data3.csv TestCaptures/data4.csv",
     )
     parser.add_argument(
-        "master", help="A master CDC CSV file to process",
+        "master", help="A Master CLIA CDC CSV file to process",
     )
     parser.add_argument(
         "new_files",
         type=argparse.FileType("r"),
         nargs="+",
-        help="Number of new data files",
+        help="A number of new CLIA CSV files to compare with Master",
+    )
+    parser.add_argument(
+        "-e", "--extra", action="store_true", help="Display some extra data",
     )
     parser.add_argument(
         "-f",
@@ -73,15 +76,30 @@ def print_banner(description):
     print("\n")
 
 
-def dataframe_difference(df1, df2, which=None):
+def df_diff(df1, df2, which=None):
     """Find rows which are different.
 
     which=left_only  - Which rows were only present in the first DataFrame?
     which=right_only - Which rows were only present in the second DataFrame?
     which=both       - Which rows were present in both DataFrames?
-    which=None .     - Which rows were not present in both DataFrames, but present in one of them?
+    which=None       - Which rows were not present in both DataFrames, but present in one of them?
     """
-    comparison_df = df1.merge(df2, indicator=True, how="outer")
+    comparison_df = df1.merge(
+        df2,
+        indicator=True,
+        on=[
+            "ID",
+            "Type",
+            "License",
+            "Name",
+            "Address",
+            "City",
+            "State",
+            "Zip",
+            "Phone",
+        ],
+        how="outer",
+    )
     if which is None:
         diff_df = comparison_df[comparison_df["_merge"] != "both"]
     else:
@@ -109,10 +127,11 @@ class Parsedata:
         """Initialize all variables, basic time checking."""
         self.verbose = args.verbose
         self.force = args.force
+        self.extra = args.extra
         self.master_csv = args.master
+        self.new_files = args.new_files
         self.df_master_lab_data = None
         self.df_new_lab_data = None
-        self.new_files = args.new_files
 
     def get_files(self):
         """Use Python Pandas to create a dataset.
@@ -128,17 +147,19 @@ class Parsedata:
             "Address",
             "City",
             "State",
-            "Something",
+            "Zip",
             "Phone",
         ]
 
         # Grab master data
+        print("\nGrab old master data...")
         self.df_master_lab_data = pd.read_csv(
-            self.master_csv, names=col_names, header=None
+            self.master_csv, names=col_names, header=None, dtype=str
         )
         self.df_master_lab_data = self.df_master_lab_data.astype(str)
 
         # Grab other inputed files to make new data file to compare with
+        print("Combine and save new data files...")
         self.df_new_lab_data = pd.concat(
             [pd.read_csv(file, names=col_names, header=None) for file in self.new_files]
         )
@@ -152,77 +173,91 @@ class Parsedata:
         Save the diff file and the new master.
         """
 
-        print_banner("Old Master data")
-        print(self.df_master_lab_data)
+        print("Number of rows displayed restricted to '20'\n")
+        if self.extra:
+            print_banner("Old Master data")
+            print(self.df_master_lab_data)
 
-        print_banner("New data combined from new data file(s)")
-        print(self.df_new_lab_data)
+            print_banner("New data combined from new data file(s)")
+            print(self.df_new_lab_data)
 
-        # This is the new Labs - save this off to a CSV
-        print_banner(
-            "(New not Master) These labs were present in only the combined new data"
-        )
-        new_lab_data_df = dataframe_difference(
+        #
+        # NEW CLIAS
+        #
+        print_banner("New CLIA (Labs in new data not present in old Master)")
+        new_clias_df = df_diff(
             self.df_master_lab_data, self.df_new_lab_data, which="right_only"
         )
-        print(new_lab_data_df)
+        new_clias_df = new_clias_df.drop("_merge", 1)
+        print(new_clias_df)
 
-        print_banner("(Master not new) These labs were present in only in the master")
-        print(
-            dataframe_difference(
-                self.df_master_lab_data, self.df_new_lab_data, which="left_only"
-            )
-        )
-
-        print_banner("(Duplicates) These labs were present in both sets of data")
-        print(
-            dataframe_difference(
-                self.df_master_lab_data, self.df_new_lab_data, which="both"
-            )
-        )
-
-        # This is the sanitized new combined or merged data
-        # Save as the new master
-        new_master_df = dataframe_difference(
-            self.df_master_lab_data, self.df_new_lab_data
-        )
-        new_master_df = new_master_df.drop("_merge", 1)
+        #
+        # CLOSED CLIAS
+        #
         print_banner(
-            "(Merged) These labs were present in only one set of data - this is the new Master"
+            "Closed CLIA (Labs present in only in the master and not the new data)"
         )
+        closed_clias_df = df_diff(
+            self.df_master_lab_data, self.df_new_lab_data, which="left_only"
+        )
+        closed_clias_df = closed_clias_df.drop("_merge", 1)
+        print(closed_clias_df)
+
+        #
+        # UNCHANGED CLIAS
+        #
+        print_banner("Unchanged CIA (Labs were present in old Master and new data")
+        unchanged_clias_df = df_diff(
+            self.df_master_lab_data, self.df_new_lab_data, which="both"
+        )
+        unchanged_clias_df = unchanged_clias_df.drop("_merge", 1)
+        print(unchanged_clias_df)
+
+        #
+        # New master = (unchanged - closed) + new
+        #
+
+        # unchanged - closed
+        new_master_df = (
+            pd.merge(unchanged_clias_df, closed_clias_df, how="outer", indicator=True)
+            .query("_merge != 'both'")
+            .drop("_merge", axis=1)
+            .reset_index(drop=True)
+        )
+        # new_master + new data
+        new_master_df = pd.concat([new_master_df, new_clias_df])
+        print_banner("CLIA Master ((unchanged - closed) + new)")
         print(new_master_df)
 
-        # Final step compare new and old Masters - what has been removed from
-        # old Master?
-        removed_from_old_master = dataframe_difference(self.df_master_lab_data, new_master_df, which="left_only")
-        print_banner("Labs removed from the old Master list")
-        print(removed_from_old_master)
-
-        # Add some fun filtering
-        print_banner("Labs in Alabama only")
-        print(new_master_df[new_master_df["State"].str.match("AL")])
-
-        print_banner("Labs with License 'Compliance'")
-        print(new_master_df[new_master_df["License"].str.match("Compliance")])
-
-        print_banner("Labs in City 'Anchorage'")
-        print(new_master_df[new_master_df["City"].str.match("Anchorage")])
-
         # Save some info
-        print_banner("Lab Data saved to CSV files")
+        print_banner("Results saved to CSV files")
 
-        print("\nSaved new lab data to: 'Output/new_lab_data.csv'")
-        new_lab_data_df.to_csv("Output/new_lab_data.csv")
+        print("\nSaved new CLIA data to:        'Output/new_clia_data.csv'")
+        new_clias_df.to_csv("Output/new_clia_data.csv")
 
-        print("Saved new master lab data to: 'Output/new_master_lab_data.csv'")
-        new_master_df.to_csv("Output/new_master_lab_data.csv")
+        print("Saved closed CLIA data to:     'Output/closed_clia_data.csv'")
+        closed_clias_df.to_csv("Output/closed_clia_data.csv")
 
-        print("Saved Labs removed from old Master to: 'Output/removed_from_old_master_lab_data.csv'")
-        removed_from_old_master.to_csv("Output/removed_from_old_master_lab_data.csv")
+        print("Saved unchanged CLIA data to:  'Output/unchanged_clia_data.csv'")
+        unchanged_clias_df.to_csv("Output/unchanged_clia_data.csv")
+
+        print("Saved new master CLIA data to: 'Output/new_master_clia_data.csv'")
+        new_master_df.to_csv("Output/new_master_clia_data.csv")
 
         print_banner(
-            f"Total number of results in new master lab data: {len(new_master_df)}"
+            f"Total number of CLIAs in new master lab data: {len(new_master_df)}"
         )
+
+        if self.extra:
+            # Add some fun filtering
+            print_banner("Labs in Alabama only")
+            print(new_master_df[new_master_df["State"].str.match("AL")])
+
+            print_banner("Labs with License 'Compliance'")
+            print(new_master_df[new_master_df["License"].str.match("Compliance")])
+
+            print_banner("Labs in City 'Anchorage'")
+            print(new_master_df[new_master_df["City"].str.match("Anchorage")])
 
 
 def main():
