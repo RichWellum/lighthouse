@@ -110,3 +110,4 @@ Example of running:
     Saved unchanged CLIA data to:  'Output/unchanged_clia_data_2020-05-18-13:45:31.csv'
     Saved new master CLIA data to: 'Output/new_master_clia_data_2020-05-18-13:45:31.csv'
     ➜  lighthouse git:(master) ✗
+```
