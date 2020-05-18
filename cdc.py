@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-cdc.py - Parse CDC CLIA Labatory Search
+cdc.py - Parse CDC CLIA Laboratory Data
 
 https://www.cdc.gov/clia/LabSearch.html
 """
@@ -255,7 +255,9 @@ class Parsedata:
             print(new_master_df[new_master_df["STATE"].str.match("AL")])
 
             print_banner("Labs with License 'Compliance'")
-            print(new_master_df[new_master_df["CERTIFICATE_TYPE"].str.match("Compliance")])
+            print(
+                new_master_df[new_master_df["CERTIFICATE_TYPE"].str.match("Compliance")]
+            )
 
             print_banner("Labs in City 'Anchorage'")
             print(new_master_df[new_master_df["CITY"].str.match("Anchorage")])
