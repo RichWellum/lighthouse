@@ -1,7 +1,7 @@
 # Lighthouse CDC parsing tools
 
 This is a tool to make a comparison between a master file of CDC Labs,
-retrieved and combined from: https://www.cdc.gov/clia/LabSearch.html, and a
+retrieved and combined from: <https://www.cdc.gov/clia/LabSearch.html>, and a
 second search that presumably contained new data, in the form of one or
 multiple files of data.
 
