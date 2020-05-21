@@ -149,6 +149,11 @@ class Parsedata:
             self.master_csv, names=self.columns, header=0, dtype=str
         )
         self.df_master_lab_data = self.df_master_lab_data.astype(str)
+        # Delete rows, where column FACILITY_TYPE != Independent, Hospital,
+        # Physician Office
+        facility_type_keep_list = ['Independent', 'Hospital', 'Physician Office']
+        self.df_master_lab_data = self.df_master_lab_data[self.df_master_lab_data['FACILITY_TYPE'].isin(facility_type_keep_list)]
+        self.df_master_lab_data = self.df_master_lab_data.reset_index(drop=True)
         print()
         print(f"Old master CLIA ({len(self.df_master_lab_data)}) data...")
 
@@ -252,6 +257,10 @@ class Parsedata:
         new_master = f"Output/new_master_clia_data_{timestr}.csv"
         print(f"Saved new master CLIA data to: '{new_master}'")
         new_master_df.to_csv(new_master)
+
+        old_master = f"Output/old_master_clia_data_adj_{timestr}.csv"
+        print(f"Saved old adjusted CLIA master data to:        '{old_master}'")
+        self.df_master_lab_data.to_csv(old_master)
 
         if self.extra:
             # Add some fun filtering
